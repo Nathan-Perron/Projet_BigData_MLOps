@@ -3,6 +3,7 @@ import psycopg2
 from dotenv import load_dotenv
 from github import Github, Auth
 
+
 # Charger les variables d'environnement depuis le fichier .env.
 load_dotenv()
 

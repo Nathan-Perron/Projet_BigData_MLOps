@@ -1,5 +1,6 @@
 import psycopg2
 
+
 # Connexion à la base de données PostgreSQL.
 conn = psycopg2.connect(
     dbname="github_database",
@@ -25,6 +26,18 @@ print("Aperçu des données :")
 # Affichage des issues récupérées pour vérification.
 for row in rows:
     print(f"- [ID {row[0]}] {row[1][:40]}... (Créée le : {row[2]})")
+
+# Vérification de la taille de la base de données et de la table issues.
+cur.execute("SELECT pg_size_pretty(pg_database_size('github_database'));")
+db_size = cur.fetchone()[0]
+
+# Vérification de la taille de la table issues.
+cur.execute("SELECT pg_size_pretty(pg_total_relation_size('issues'));")
+table_size = cur.fetchone()[0]
+
+# Affichage des tailles de la base de données et de la table issues.
+print(f"\nTaille totale de la base : {db_size}")
+print(f"Taille de la table 'issues' : {table_size}")
 
 # Fermeture de la connexion à la base de données.
 cur.close()
