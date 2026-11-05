@@ -9,10 +9,13 @@ DATABASE_URI = "postgresql://admin:admin123@localhost:5432/github_database"
 #
 # Fonction pour nettoyer le texte des issues.
 #
-def clean_text_py(text):
+def clean_text(text):
 
+    # Ignore les textes vides ou nuls.
     if(not text):
         return ""
+
+    # Nettoyage du texte en supprimant les éléments indésirables.
     
     text = re.sub(r'```.*?```', '', text, flags=re.DOTALL) # Supprime les blocs de code entre triple backticks.
     text = re.sub(r'`.*?`', '', text) # Supprime les blocs de code entre backticks simples.
@@ -28,7 +31,7 @@ def clean_text_py(text):
 #
 # Fonction principale pour traiter les features des issues.
 #
-def process_features():
+def clean_features():
     # Récupération des issues fermées depuis la base de données PostgreSQL.
     query = """
     SELECT issue_id, repo_name, title, body_clean, author_association, labels, created_at, closed_at
@@ -49,9 +52,9 @@ def process_features():
         ])
         # Filtrage des issues avec un temps de résolution supérieur à 0.01 heures (36 secondes).
         .filter(pl.col("resolution_time_hours") >= 0.01)
-        # Nettoyage du texte des issues en utilisant la fonction clean_text_py.
+        # Nettoyage du texte des issues en utilisant la fonction clean_text.
         .with_columns([
-            pl.col("body_clean").map_elements(clean_text_py, return_dtype=pl.Utf8).alias("body_cleaned")
+            pl.col("body_clean").map_elements(clean_text, return_dtype=pl.Utf8).alias("body_cleaned")
         ])
         # Création d'une colonne combinée pour le texte complet de l'issue.
         .with_columns([
@@ -76,4 +79,4 @@ def process_features():
 
 
 if(__name__ == "__main__"):
-    process_features()
+    clean_features()
