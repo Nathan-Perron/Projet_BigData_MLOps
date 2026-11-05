@@ -1,10 +1,10 @@
 import os
 import re
 import polars as pl
+import psycopg2
+from dotenv import load_dotenv
 
-
-# Définition de la chaîne de connexion à la base de données PostgreSQL.
-DATABASE_URI = "postgresql://admin:admin123@localhost:5432/github_database"
+load_dotenv()
 
 #
 # Fonction pour nettoyer le texte des issues.
@@ -29,6 +29,15 @@ def clean_text_py(text):
 # Fonction principale pour traiter les features des issues.
 #
 def process_features():
+    conn = psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        sslmode="require"
+    )
+
     # Récupération des issues fermées depuis la base de données PostgreSQL.
     query = """
     SELECT issue_id, repo_name, title, body_clean, author_association, labels, created_at, closed_at
@@ -37,7 +46,10 @@ def process_features():
     """
     
     # Lecture des données depuis la base de données en utilisant Polars.
-    df = pl.read_database_uri(query=query, uri=DATABASE_URI)
+    try:
+        df = pl.read_database(query=query, connection=conn)
+    finally:
+        conn.close()
 
     print(f"Issues fermées récupérées : {len(df)}")
 
