@@ -9,7 +9,7 @@ DATABASE_URI = "postgresql://admin:admin123@localhost:5432/github_database"
 #
 # Fonction pour nettoyer le texte des issues.
 #
-def clean_text_py(text: str) -> str:
+def clean_text_py(text):
 
     if(not text):
         return ""
@@ -72,9 +72,8 @@ def process_features():
     print("\nAperçu des données avec les colonnes spécifiques :")
     print(df_processed.select(["issue_id", "repo_name", "resolution_time_hours"]).head(5))
 
-
     return df_processed
 
 
-if __name__ == "__main__":
+if(__name__ == "__main__"):
     process_features()
