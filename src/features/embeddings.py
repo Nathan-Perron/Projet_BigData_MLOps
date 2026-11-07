@@ -1,8 +1,12 @@
 import os
 import psycopg2
 import polars as pl
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
+
+# Charger les variables d'environnement depuis le fichier .env.
+load_dotenv()
 
 # Configuration des paramètres pour la génération d'embeddings.
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -45,11 +49,12 @@ def generate_and_store_embeddings():
     print("\nMise à jour des vecteurs dans PostgreSQL (pgvector)...")
 
     conn = psycopg2.connect(
-        dbname="github_database",
-        user="admin",
-        password="admin123",
-        host="localhost",
-        port="5432"
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        sslmode="require"
     )
     cursor = conn.cursor()
 
