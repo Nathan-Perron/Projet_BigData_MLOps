@@ -20,7 +20,7 @@ git clone https://github.com/Nathan-Perron/Projet_BigData_MLOps.git
 
 - conda create --name nomEnvironnement
 - conda activate nomEnvironnement
-- pip install pygithub python-dotenv psycopg2-binary pgvector polars connectorx pyarrow sentence-transformers
+- pip install pygithub python-dotenv psycopg2-binary pgvector polars connectorx pyarrow sentence-transformers lightgbm scikit-learn joblib
 
 ## Membres du groupe
 

@@ -1,10 +1,14 @@
 import os
 import re
-import polars as pl
 import psycopg2
+import polars as pl
 from dotenv import load_dotenv
 
+
+# Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
+
+OUTPUT_PATH = "data/issues_cleaned.parquet"
 
 #
 # Fonction pour nettoyer le texte des issues.
@@ -31,7 +35,8 @@ def clean_text(text):
 #
 # Fonction principale pour traiter les features des issues.
 #
-def process_features():
+def clean_features():
+    # Connexion à la base de données PostgreSQL.
     conn = psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
@@ -40,7 +45,7 @@ def process_features():
         port=os.getenv("DB_PORT"),
         sslmode="require"
     )
-
+    
     # Récupération des issues fermées depuis la base de données PostgreSQL.
     query = """
     SELECT issue_id, repo_name, title, body_clean, author_association, labels, created_at, closed_at
@@ -75,11 +80,10 @@ def process_features():
     )
 
     # Sauvegarde du dataset nettoyé dans un fichier Parquet.
-    os.makedirs("data/processed", exist_ok=True)
-    output_path = "data/processed/issues_cleaned.parquet"
-    df_processed.write_parquet(output_path)
+    os.makedirs("data", exist_ok=True)
+    df_processed.write_parquet(OUTPUT_PATH)
     
-    print(f"Dataset nettoyé sauvegardé avec succès dans : {output_path}")
+    print(f"Dataset nettoyé sauvegardé avec succès dans : {OUTPUT_PATH}")
 
     print("\nShape du dataset nettoyé :", df_processed.shape)
     print("\nAperçu des données nettoyées :")

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from github import Github, Auth
 
 
-# Charger les variables d'environnement depuis le fichier .env.
+# Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
 
 # Vérifier la présence des variables nécessaires
@@ -42,18 +42,19 @@ MAX_ISSUES = 50
 
 print(f"Extraction de {MAX_ISSUES} issues pour via : \"{search_query}\"...")
 
-# Récupération de 5 issues correspondant à la requête de recherche.
+# Récupération d'issues correspondant à la requête de recherche.
 issues = github.search_issues(query=search_query, sort="created", order="desc")
 
 processed = 0
 inserted = 0
 
 try:
+
     # Insertion des issues dans la base de données.
     for issue in issues:
 
-        # Arrêt dès qu'on a atteint les 50 issues souhaitées
-        if processed >= MAX_ISSUES:
+        # Arrêt dès qu'on a atteint les issues souhaitées
+        if(processed >= MAX_ISSUES):
             break
 
         # Exclut les Pull Requests des issues.
@@ -87,11 +88,11 @@ try:
 
         processed += 1
 
-        if cursor.rowcount == 1:
+        if(cursor.rowcount == 1):
             inserted += 1
         
         # Affichage d'un message tous les 50 issues collectées.
-        if(processed % 10 == 0):
+        if(processed % 50 == 0):
             conn.commit()
             print(f"  -> {processed}/{MAX_ISSUES} issues enregistrées...")
 
@@ -101,10 +102,10 @@ try:
     print(f"Issues traitées : {processed}")
     print(f"Nouvelles issues insérées : {inserted}")
     print(f"Issues déjà présentes : {processed - inserted}")
-
+    
 except Exception:
     conn.rollback()
-    raise
+    print("Une erreur est survenue lors de la collecte des issues.")
 
 finally:
     cursor.close()
