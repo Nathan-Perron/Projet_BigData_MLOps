@@ -13,7 +13,7 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 load_dotenv()
 
 # Configuration des chemins pour les fichiers Parquet et le modèle entraîné.
-PARQUET_PATH = "data/processed/issues_cleaned.parquet"
+PARQUET_PATH = "data/issues_cleaned.parquet"
 MODEL_OUTPUT_PATH = "models/resolution_time_model.pkl"
 
 #
@@ -56,20 +56,20 @@ def load_data_and_features():
     # Filtre le DataFrame pour ne conserver que les issues ayant des embeddings.
     df = df.filter(pl.col("issue_id").is_in(list(embeddings.keys())))
 
-    # Transformation one-hot basique pour la variable catégorielle author_association
+    # Transforme les colonnes catégorielles en variables indicatrices (one-hot encoding).
     df_encoded = df.to_dummies(columns=["author_association"])
     
-    # Isolation de la cible (Y) et préparation de la matrice de features (X)
+    # Récupère la variable cible (temps de résolution en heures).
     y = df_encoded["resolution_time_hours"].to_numpy()
     
-    # Matrice d'embeddings (384 colonnes)
+    # Crée une matrice numpy pour les embeddings en utilisant l'ordre des issue_id dans le DataFrame.
     X_embeddings = np.array([embeddings[i_id] for i_id in df_encoded["issue_id"]])
     
-    # Caractéristiques catégorielles encodées
+    # Caractérise les colonnes catégorielles pour la fusion avec les embeddings.
     categorical_cols = [col for col in df_encoded.columns if col.startswith("author_association_")]
     X_categorical = df_encoded[categorical_cols].to_numpy()
 
-    # Fusion des features vectorielles (NLP) et tabulaires
+    # Fusionne les features vectorielles (NLP) et tabulaires.
     X = np.hstack((X_embeddings, X_categorical))
 
     print(f"Dataset prêt : {X.shape[0]} d'issues et {X.shape[1]} caractéristiques")

@@ -5,8 +5,10 @@ import polars as pl
 from dotenv import load_dotenv
 
 
-# Charger les variables d'environnement depuis le fichier .env.
+# Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
+
+OUTPUT_PATH = "data/issues_cleaned.parquet"
 
 #
 # Fonction pour nettoyer le texte des issues.
@@ -78,11 +80,10 @@ def clean_features():
     )
 
     # Sauvegarde du dataset nettoyé dans un fichier Parquet.
-    os.makedirs("data/processed", exist_ok=True)
-    output_path = "data/processed/issues_cleaned.parquet"
-    df_processed.write_parquet(output_path)
+    os.makedirs("data", exist_ok=True)
+    df_processed.write_parquet(OUTPUT_PATH)
     
-    print(f"Dataset nettoyé sauvegardé avec succès dans : {output_path}")
+    print(f"Dataset nettoyé sauvegardé avec succès dans : {OUTPUT_PATH}")
 
     print("\nShape du dataset nettoyé :", df_processed.shape)
     print("\nAperçu des données nettoyées :")

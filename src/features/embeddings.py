@@ -5,12 +5,12 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 
-# Charger les variables d'environnement depuis le fichier .env.
+# Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
 
 # Configuration des paramètres pour la génération d'embeddings.
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-PARQUET_PATH = "data/processed/issues_cleaned.parquet"
+PARQUET_PATH = "data/issues_cleaned.parquet"
 
 # 
 # Fonction pour générer et stocker les embeddings des issues.

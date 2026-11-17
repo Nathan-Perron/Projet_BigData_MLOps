@@ -3,7 +3,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 
-# Charger les variables d'environnement depuis le fichier .env.
+# Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
 
 # Connexion à la base de données PostgreSQL.
