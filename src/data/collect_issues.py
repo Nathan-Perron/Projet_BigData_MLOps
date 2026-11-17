@@ -7,25 +7,11 @@ from github import Github, Auth
 # Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
 
-# Vérifier la présence des variables nécessaires
-required_vars = [
-    "GITHUB_TOKEN",
-    "DB_HOST",
-    "DB_PORT",
-    "DB_NAME",
-    "DB_USER",
-    "DB_PASSWORD"
-]
-
-missing_vars = [var for var in required_vars if not os.getenv(var)]
-if missing_vars:
-    raise ValueError(f"Variables manquantes dans .env : {missing_vars}")
-
 # Connexion à l'API GitHub.
 auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
 github = Github(auth=auth)
 
-# Connexion à Azure PostgreSQL.
+# Connexion à la base de données PostgreSQL.
 conn = psycopg2.connect(
     dbname=os.getenv("DB_NAME"),
     user=os.getenv("DB_USER"),
@@ -38,7 +24,7 @@ cursor = conn.cursor()
 
 # Requête de recherche pour récupérer les issues fermées avec le label "bug" et plus de 500 étoiles.
 search_query = "is:issue is:closed label:bug stars:>500"
-MAX_ISSUES = 50
+MAX_ISSUES = 500
 
 print(f"Extraction de {MAX_ISSUES} issues via : \"{search_query}\"...")
 

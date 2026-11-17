@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Charge les variables d'environnement depuis le fichier .env.
 load_dotenv()
 
-# Connexion Azure PostgreSQL.
+# Connexion à la base de données PostgreSQL.
 conn = psycopg2.connect(
     dbname=os.getenv("DB_NAME"),
     user=os.getenv("DB_USER"),
