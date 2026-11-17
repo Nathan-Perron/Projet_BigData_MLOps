@@ -26,7 +26,7 @@ cursor = conn.cursor()
 search_query = "is:issue is:closed label:bug stars:>500"
 MAX_ISSUES = 500
 
-print(f"Extraction de {MAX_ISSUES} issues pour via : \"{search_query}\"...")
+print(f"Extraction de {MAX_ISSUES} issues via : \"{search_query}\"...")
 
 # Récupération d'issues correspondant à la requête de recherche.
 issues = github.search_issues(query=search_query, sort="created", order="desc")
