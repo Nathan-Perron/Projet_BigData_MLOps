@@ -2,6 +2,7 @@ import os
 import psycopg2
 import polars as pl
 from dotenv import load_dotenv
+from psycopg2.extras import execute_batch
 from sentence_transformers import SentenceTransformer
 
 
@@ -9,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 load_dotenv()
 
 # Configuration des paramètres pour la génération d'embeddings.
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 PARQUET_PATH = "data/issues_cleaned.parquet"
 
 # 
@@ -62,14 +63,14 @@ def generate_and_store_embeddings():
     update_query = """
     UPDATE issues
     SET title_body_embedding = %s::vector
-    WHERE issue_id = %s AND title_body_embedding IS NULL;
+    WHERE issue_id = %s;
     """
 
     # Formate les données pour l'insertion.
     updates = [(embedding.tolist(), int(issue_id)) for issue_id, embedding in zip(issue_ids, embeddings)]
 
     # Insert les embeddings dans la base de données.
-    cursor.executemany(update_query, updates)
+    execute_batch(cursor, update_query, updates, page_size=500)
     conn.commit()
 
     print(f"\nSuccès ! {len(updates)} vecteurs insérés dans 'title_body_embedding'.")

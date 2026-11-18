@@ -1,13 +1,13 @@
-import joblib
+import pickle
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 
 # Configure les chemins pour le modèle entraîné et le modèle NLP.
 MODEL_PATH = "models/resolution_time_model.pkl"
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-# Ordre exact des 5 colonnes de ton dataset (384 + 5 = 389 features)
+# Catégories d'association d'auteur pour le one-hot encoding.
 AUTHOR_CATEGORIES = [
     "COLLABORATOR",
     "CONTRIBUTOR",
@@ -16,46 +16,98 @@ AUTHOR_CATEGORIES = [
     "OWNER"
 ]
 
+#
+# Classe qui estime le temps de résolution d'une issue en heures à partir du titre, du corps et de l'association de l'auteur.
+#
 class IssueTimePredictor:
+
+    #
+    # Initialise la classe en chargeant le modèle NLP et le modèle LightGBM.
+    #
     def __init__(self):
         print("Chargement du modèle NLP et du modèle LightGBM...")
-        self.nlp_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-        self.ml_model = joblib.load(MODEL_PATH)
 
-    def predict(self, title: str, body: str, author_association: str = "NONE") -> float:
-        """Prédit le temps de résolution en heures pour une nouvelle issue."""
-        # 1. Préparation et vectorisation du texte (identique à cleaning.py + embeddings.py)
+        self.nlp_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        self.ml_model = pickle.load(open(MODEL_PATH, "rb"))
+
+
+    #
+    # Prédit le temps de résolution en heures pour une nouvelle issue.
+    #
+    def predict(self, title, body, author_association="NONE"):  
+
+        # Prépare les données pour la prédiction en suivant le même ordre que lors de l'entraînement du modèle.
+
         full_text = f"{title} {body}".strip()
+
         embedding = self.nlp_model.encode(
             [full_text],
             normalize_embeddings=True
-        )  # Shape: (1, 384)
+        )
 
-        # 2. Encodage One-Hot de author_association dans l'ordre exact
+        # Encode l'association de l'auteur en one-hot encoding.
+
         author_upper = author_association.upper()
-        cat_features = np.zeros((1, len(AUTHOR_CATEGORIES)))
-        if author_upper in AUTHOR_CATEGORIES:
+        features = np.zeros((1, len(AUTHOR_CATEGORIES)))
+
+        # Si l'association de l'auteur est reconnue, on met à 1 la colonne correspondante.
+        if(author_upper in AUTHOR_CATEGORIES):
             idx = AUTHOR_CATEGORIES.index(author_upper)
-            cat_features[0, idx] = 1.0
+            features[0, idx] = 1.0
 
-        # 3. Fusion des features : 384 (NLP) + 5 (Catégorielles) = 389
-        X = np.hstack((embedding, cat_features))
+        # Fusionne les embeddings et les features catégorielles pour la prédiction.
+        X = np.hstack((embedding, features))
 
-        # 4. Prédiction
-        predicted_hours = self.ml_model.predict(X)[0]
+        # Prédit le temps de résolution en heures en utilisant le modèle LightGBM.
+        predicted_log = self.ml_model.predict(X)[0]
+        predicted_hours = np.expm1(predicted_log)
+
         return max(0.5, float(predicted_hours))
+    
 
 if(__name__ == "__main__"):
     predictor = IssueTimePredictor()
 
-    # --- Test 1 : Un bug critique ---
-    titre_1 = "Crash when connecting to PostgreSQL with invalid SSL certificate"
-    desc_1 = "The application throws an unhandled Segmentation Fault when SSL mode is set to verify-full."
-    temps_1 = predictor.predict(titre_1, desc_1, author_association="CONTRIBUTOR")
-    print(f"\n[Test 1 - Bug critique] Temps estimé : {temps_1:.1f} heures (~{temps_1/24:.1f} jours)")
+    tests = [
+        # 3 tests en anglais.
 
-    # --- Test 2 : Une petite correction de documentation ---
-    titre_2 = "Fix typo in README.md installation guide"
-    desc_2 = "Changed 'pyhton' to 'python' in the quickstart section."
-    temps_2 = predictor.predict(titre_2, desc_2, author_association="NONE")
-    print(f"[Test 2 - Typo Doc]     Temps estimé : {temps_2:.1f} heures (~{temps_2/24:.1f} jours)")
+        {
+            "label": "EN 1 - Bug critique SSL (CONTRIBUTOR)",
+            "title": "Crash when connecting to PostgreSQL with invalid SSL certificate",
+            "body": "The application throws an unhandled Segmentation Fault when SSL mode is set to verify-full.",
+            "author": "CONTRIBUTOR"
+        },
+        {
+            "label": "EN 2 - Typo documentation (NONE)",
+            "title": "Fix typo in README.md installation guide",
+            "body": "Changed 'pyhton' to 'python' in the quickstart section.",
+            "author": "NONE"
+        },
+        {
+            "label": "EN 3 - Refonte architecture lourde (OWNER)",
+            "title": "Migrate authentication layer from session cookies to OAuth2 + JWT",
+            "body": "We need to deprecate legacy session storage, add refresh token rotation, and update all API middlewares and unit tests.",
+            "author": "OWNER"
+        },
+
+        # 2 tests en français.
+
+        {
+            "label": "FR 1 - Problème performance API (MEMBER)",
+            "title": "Temps de réponse supérieur à 8 secondes sur l'endpoint /predict",
+            "body": "Le modèle NLP est rechargé à chaque requête HTTP au lieu d'être mis en cache au démarrage du serveur.",
+            "author": "MEMBER"
+        },
+        {
+            "label": "FR 2 - Bug UI mineur mobile (COLLABORATOR)",
+            "title": "Le bouton de validation est masqué sur petit écran mobile",
+            "body": "Sur iPhone SE, la barre de navigation recouvre le bas du formulaire d'inscription et empêche de cliquer sur Envoyer.",
+            "author": "COLLABORATOR"
+        }
+    ]
+
+    print("\nTests de prédiction du temps de résolution pour des issues fictives :\n")
+
+    for test in tests:
+        prediction = predictor.predict(test["title"], test["body"], author_association=test["author"])
+        print(f"[{test["label"]:<42}] -> {prediction:6.1f} heures (~{prediction/24:4.1f} jours)")

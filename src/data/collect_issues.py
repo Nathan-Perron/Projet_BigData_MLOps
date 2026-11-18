@@ -1,7 +1,8 @@
 import os
+import time
 import psycopg2
 from dotenv import load_dotenv
-from github import Github, Auth
+from github import Github, Auth, RateLimitExceededException
 
 
 # Charge les variables d'environnement depuis le fichier .env.
@@ -9,7 +10,7 @@ load_dotenv()
 
 # Connexion à l'API GitHub.
 auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
-github = Github(auth=auth)
+github = Github(auth=auth, timeout=15,per_page=100)
 
 # Connexion à la base de données PostgreSQL.
 conn = psycopg2.connect(
@@ -22,65 +23,77 @@ conn = psycopg2.connect(
 )
 cursor = conn.cursor()
 
-# Requête de recherche pour récupérer les issues fermées avec le label "bug" et plus de 500 étoiles.
-search_query = "is:issue is:closed label:bug stars:>500"
-MAX_ISSUES = 500
 
-print(f"Extraction de {MAX_ISSUES} issues via : \"{search_query}\"...")
+# Requête de recherche pour récupérer les issues fermées avec le label "bug" et plus de 250 étoiles.
+base_query = "is:issue is:closed label:bug stars:>250"
+MAX_ISSUES = 2500
 
-# Récupération d'issues correspondant à la requête de recherche.
-issues = github.search_issues(query=search_query, sort="created", order="desc")
+print(f"Extraction de {MAX_ISSUES} issues via : \"{base_query}\"...")
 
 processed = 0
 inserted = 0
+last_date = None
 
 try:
 
-    # Insertion des issues dans la base de données.
-    for issue in issues:
+    while(inserted < MAX_ISSUES):
 
-        # Arrêt dès qu'on a atteint les issues souhaitées
-        if(processed >= MAX_ISSUES):
-            break
+        # Détermine la requête de recherche en fonction de la date de la dernière issue traitée.
+        if(last_date):
+            search_query = f"{base_query} created:<{last_date}"
+        else:
+            search_query = base_query
 
-        # Exclut les Pull Requests des issues.
-        if(issue.pull_request is not None):
-            continue
+        try:
+            issues = github.search_issues(query=search_query, sort="created", order="desc")
 
-        labels = [label.name for label in issue.labels]
+            for issue in issues:
 
-        # Récupère le nom du dépôt à partir de l'URL du dépôt.
-        repo_name = "/".join(issue.repository_url.split("/")[-2:])
+                if(inserted >= MAX_ISSUES):
+                    break
 
-        query = """
-        INSERT INTO issues (
-            issue_id, repo_name, title, body_clean, author_association, 
-            labels, created_at, closed_at, state_reason
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (issue_id) DO NOTHING;
-        """
+                if(issue.pull_request is not None):
+                    continue
 
-        cursor.execute(query, (
-            issue.id,
-            repo_name,
-            issue.title,
-            issue.body or "",
-            issue.author_association,
-            labels,
-            issue.created_at,
-            issue.closed_at,
-            issue.state_reason
-        ))
+                labels = [label.name for label in issue.labels]
+                repo_name = "/".join(issue.repository_url.split("/")[-2:])
 
-        processed += 1
+                query = """
+                INSERT INTO issues (
+                    issue_id, repo_name, title, body_clean, author_association, 
+                    labels, created_at, closed_at, state_reason
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (issue_id) DO NOTHING;
+                """
 
-        if(cursor.rowcount == 1):
-            inserted += 1
-        
-        # Affichage d'un message tous les 50 issues collectées.
-        if(processed % 50 == 0):
+                cursor.execute(query, (
+                    issue.id,
+                    repo_name,
+                    issue.title,
+                    issue.body or "",
+                    issue.author_association,
+                    labels,
+                    issue.created_at,
+                    issue.closed_at,
+                    issue.state_reason
+                ))
+
+                processed += 1
+
+                # Met à jour la date de la dernière issue traitée pour la prochaine itération.
+                last_date = issue.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                if(cursor.rowcount == 1):
+                    inserted += 1
+
+                    if(inserted % 50 == 0):
+                        conn.commit()
+                        print(f"  -> {inserted}/{MAX_ISSUES} issues enregistrées...")
+
+        except RateLimitExceededException:
             conn.commit()
-            print(f"  -> {processed}/{MAX_ISSUES} issues enregistrées...")
+            print("Limite de requêtes atteinte, pause de 60 secondes...")
+            time.sleep(60)
 
     conn.commit()
 
@@ -88,10 +101,10 @@ try:
     print(f"Issues traitées : {processed}")
     print(f"Nouvelles issues insérées : {inserted}")
     print(f"Issues déjà présentes : {processed - inserted}")
-    
-except Exception:
+
+except Exception as e:
     conn.rollback()
-    print("Une erreur est survenue lors de la collecte des issues.")
+    print(f"Une erreur est survenue lors de la collecte des issues : {e}")
 
 finally:
     cursor.close()

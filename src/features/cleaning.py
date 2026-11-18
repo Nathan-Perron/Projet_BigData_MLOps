@@ -51,6 +51,7 @@ def clean_features():
     SELECT issue_id, repo_name, title, body_clean, author_association, labels, created_at, closed_at
     FROM issues
     WHERE closed_at IS NOT NULL
+    AND (state_reason = 'completed' OR state_reason IS NULL)
     """
     
     # Lecture des données depuis la base de données en utilisant Polars.
@@ -69,9 +70,19 @@ def clean_features():
         ])
         # Filtrage des issues avec un temps de résolution supérieur à 0.01 heures (36 secondes).
         .filter(pl.col("resolution_time_hours") >= 0.01)
-        # Nettoyage du texte des issues en utilisant la fonction clean_text.
+        # Nettoyage du texte des issues.
         .with_columns([
-            pl.col("body_clean").map_elements(clean_text, return_dtype=pl.Utf8).alias("body_cleaned")
+            pl.col("body_clean")
+            .fill_null("")
+            .str.replace_all(r"(?s)```.*?```", "")   # Blocs de code multi-lignes
+            .str.replace_all(r"`.*?`", "")           # Code inline
+            .str.replace_all(r"!\[.*?\]\(.*?\)", "") # Images Markdown
+            .str.replace_all(r"http\S+", "")         # URLs
+            .str.replace_all(r"<.*?>", "")           # Balises HTML
+            .str.replace_all(r"@\w+", "")            # Mentions utilisateurs
+            .str.replace_all(r"\s+", " ")            # Espaces multiples
+            .str.strip_chars()
+            .alias("body_cleaned")
         ])
         # Création d'une colonne combinée pour le texte complet de l'issue.
         .with_columns([
